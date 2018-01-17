@@ -1,12 +1,14 @@
 from random import randint, shuffle
+from decimal import Decimal, ROUND_HALF_UP
 
 
 class Player:
-    def __init__(self, starting_amount, strategy):
+    def __init__(self, starting_amount, minimum_bet):
         self.starting_amount = starting_amount
         self.current_amount = self.starting_amount
+        self.minimum_bet = minimum_bet
         self.table = None
-        self.strategy = strategy
+        self.strategy = Strategy(player=self, minimum_bet=self.minimum_bet)
 
     def set_table(self, table):
         self.table = table
@@ -22,12 +24,20 @@ class Dealer:
     def __init__(self, cards):
         self.table = None
         self.cards = cards
+        self.count = 0
 
     def set_table(self, table):
         self.table = table
 
     def shuffle(self):
+        self.count = 0
         shuffle(self.cards)
+
+    @property
+    def true_count(self):
+        decks_left = Decimal(len(self.cards)/52)
+        true_count = Decimal(self.count / decks_left)
+        return Decimal(true_count.quantize(Decimal('.1'))) - 1
 
 
 class Table:
@@ -92,10 +102,11 @@ class Decks:
 
 
 class Strategy:
-    def __init__(self, minimum_bet):
+    def __init__(self, player, minimum_bet):
+        self.player = player
         self.options = ['Double_down', 'Split', 'Surrender', 'Hit', 'Stand']
         self.minimum_bet = minimum_bet
-        self.count = 0
+        self.current_count = 0
 
     def basic_strategy(self, my_hand: Hand, dealer_card: Card):
         pass
@@ -103,12 +114,15 @@ class Strategy:
 
 class Main:
     def __init__(self, deck_count=6, starting_amount=10000, minimum_bet=10):
-        self.player = Player(starting_amount, Strategy(minimum_bet))
-        self.dealer = Dealer(Decks(deck_count))
+        self.player = Player(starting_amount, minimum_bet)
+        self.dealer = Dealer(Decks(deck_count).cards)
         self.table = Table(self.player, self.dealer)
         self.player.set_table(self.table)
         self.dealer.set_table(self.dealer)
 
 
 if __name__ == '__main__':
-    x = Main()
+    # x = Main()
+    x = Dealer(Decks(4).cards)
+    x.count = 13
+    print(x.true_count)

@@ -7,11 +7,20 @@ class Player:
         self.starting_amount = starting_amount
         self.current_amount = self.starting_amount
         self.minimum_bet = minimum_bet
-        self.table = None
+        self._table = None
         self.strategy = Strategy(player=self, minimum_bet=self.minimum_bet)
 
-    def set_table(self, table):
-        self.table = table
+    @property
+    def table(self):
+        return self._table
+
+    @table.setter
+    def table(self, table):
+        self._table = table
+
+    @table.deleter
+    def table(self):
+        del self._table
 
     def __add__(self, other):
         self.current_amount += other
@@ -22,28 +31,70 @@ class Player:
 
 class Dealer:
     def __init__(self, cards):
-        self.table = None
         self.cards = cards
-        self.count = 0
-
-    def set_table(self, table):
-        self.table = table
-
-    def shuffle(self):
-        self.count = 0
-        shuffle(self.cards)
+        self._table = None
+        self.players = []
 
     @property
-    def true_count(self):
-        decks_left = Decimal(len(self.cards)/52)
-        true_count = Decimal(self.count / decks_left)
-        return Decimal(true_count.quantize(Decimal('.1'))) - 1
+    def table(self):
+        return self._table
+
+    @table.setter
+    def table(self, table):
+        self._table = table
+
+    @table.deleter
+    def table(self):
+        del self._table
+
+    def add_player(self, player):
+        self.players.append(player)
+
+    def remove_player(self, player):
+        self.players.remove(player)
+
+    def deal_hands(self):
+        dealer_hand = None
+        player_hand = None
+        player_hand = self.cards.pop()
+        dealer_hand = self.cards.pop()
+        dealer_hand.shown_status = False
+        player_hand = (player_hand, self.cards.pop())
+        dealer_hand = (dealer_hand, self.cards.pop())
+
+    def deal_card(self):
+        card = self.cards.pop()
+        self.table.calc_count(card)
+
+    def shuffle(self):
+        shuffle(self.cards)
 
 
 class Table:
     def __init__(self, player: Player, dealer: Dealer):
         self.player = player
         self.dealer = dealer
+        self.count = 0
+
+    def calc_count(self, card: Card):
+        if card.value == (1, 11):
+            self.update_count(-1)
+        if card.value < 7:
+            self.update_count(1)
+        if card.value > 9:
+            self.update_count(-1)
+
+    def update_count(self, update):
+        self.count += update
+
+    def reset_count(self):
+        self.count = 0
+
+    @property
+    def true_count(self):
+        decks_left = Decimal(len(self.dealer.cards) / 52)
+        true_count = Decimal(self.count / decks_left)
+        return Decimal(true_count.quantize(Decimal('.1'))) - 1
 
 
 class Card:
@@ -62,6 +113,7 @@ class Card:
                       '3': 3,
                       '2': 2}
         self.card_number = card_number
+        self.shown_status = True
 
     @property
     def value(self):
@@ -104,11 +156,12 @@ class Decks:
 class Strategy:
     def __init__(self, player, minimum_bet):
         self.player = player
-        self.options = ['Double_down', 'Split', 'Surrender', 'Hit', 'Stand']
+        self.options = {'Double_down': 1, 'Split': 2, 'Surrender': 3, 'Hit': 4, 'Stand': 5}
         self.minimum_bet = minimum_bet
         self.current_count = 0
 
     def basic_strategy(self, my_hand: Hand, dealer_card: Card):
+        # Lets deal with Pairs
         pass
 
 
@@ -117,12 +170,16 @@ class Main:
         self.player = Player(starting_amount, minimum_bet)
         self.dealer = Dealer(Decks(deck_count).cards)
         self.table = Table(self.player, self.dealer)
-        self.player.set_table(self.table)
-        self.dealer.set_table(self.dealer)
+
+    def set_tables(self):
+        self.player.table = self.table
+        self.dealer.table = self.table
+
+    def add_player(self):
+        self.dealer.add_player(self.player)
 
 
 if __name__ == '__main__':
-    # x = Main()
-    x = Dealer(Decks(4).cards)
-    x.count = 13
-    print(x.true_count)
+    x = Main()
+    x.set_tables()
+    x.add_player()
